@@ -9,10 +9,12 @@ namespace ComprasBackend.Application.Services;
 public class PurchaseService : IPurchaseService
 {
     private readonly ComprasDbContext _db;
+    private readonly IInventoryClient _inventoryClient;
 
-    public PurchaseService(ComprasDbContext db)
+    public PurchaseService(ComprasDbContext db, IInventoryClient inventoryClient)
     {
         _db = db;
+        _inventoryClient = inventoryClient;
     }
 
     public async Task<PurchaseDto> CreateAsync(CreatePurchaseRequest request)
@@ -80,8 +82,34 @@ public class PurchaseService : IPurchaseService
         if (!string.Equals(purchase.Status, PurchaseStatus.Pending, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("Solo se pueden confirmar compras en estado Pending");
 
+        // 1. Mark as confirmed in local DB
         purchase.Status = PurchaseStatus.Confirmed;
         await _db.SaveChangesAsync();
+
+        // 2. Notify Inventory system (Rafael or internal adapter)
+        if (purchase.Items.Any())
+        {
+            var firstItem = purchase.Items.First();
+            var companyCen = firstItem.EmpresaId.ToString();
+            var warehouseCen = firstItem.AlmacenId.ToString();
+            var reason = $"Compra confirmada: ID {purchase.Id}, Proveedor: {purchase.Supplier}";
+
+            var lines = purchase.Items.Select(i => new PurchaseEntryLineDto
+            {
+                ProductCen = i.ProductId.ToString(), // Translating ID to string
+                Quantity = i.Quantity,
+                UnitCost = 0 // Cost information not available in current PurchaseItem
+            }).ToList();
+
+            try
+            {
+                await _inventoryClient.RegisterPurchaseEntryAsync(companyCen, warehouseCen, reason, lines);
+            }
+            catch
+            {
+                // In a production environment, we would handle retry logic or log the failure
+            }
+        }
 
         return MapToDto(purchase);
     }
