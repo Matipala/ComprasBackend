@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using ComprasBackend.Application.Interface;
 using ComprasBackend.Application.Services;
 using ComprasBackend.Infrastructure.Data;
+using ComprasBackend.Infrastructure.Services;
 
 DotNetEnv.Env.Load();
 
@@ -16,6 +17,8 @@ builder.Services.AddDbContext<ComprasDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddScoped<IPurchaseService, PurchaseService>();
+builder.Services.AddHttpClient<IInventoryClient, InventoryClient>();
+builder.Services.AddScoped<IInventoryClient, InventoryClient>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -42,10 +45,10 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors("AllowAll");
 
-if (!app.Environment.IsDevelopment())
-{
-    app.UseHttpsRedirection();
-}
+// if (!app.Environment.IsDevelopment())
+// {
+//     app.UseHttpsRedirection();
+// }
 
 app.UseAuthorization();
 app.MapControllers();
