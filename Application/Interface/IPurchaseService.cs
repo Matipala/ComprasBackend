@@ -5,7 +5,7 @@ namespace ComprasBackend.Application.Interface;
 public interface IPurchaseService
 {
     Task<PurchaseDto> CreateAsync(CreatePurchaseRequest request);
-    Task<PurchaseDto?> GetByIdAsync(int id);
+    Task<PurchaseDto?> GetByIdAsync(Guid id);
     Task<List<PurchaseDto>> GetAllAsync();
-    Task<PurchaseDto> ConfirmAsync(int id);
+    Task<PurchaseDto> ConfirmAsync(Guid id);
 }

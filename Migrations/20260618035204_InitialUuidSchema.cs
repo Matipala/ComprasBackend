@@ -1,23 +1,25 @@
 ﻿using System;
 using Microsoft.EntityFrameworkCore.Migrations;
-using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
 namespace ComprasBackend.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCompras : Migration
+    public partial class InitialUuidSchema : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.EnsureSchema(
+                name: "compras");
+
             migrationBuilder.CreateTable(
                 name: "Purchases",
+                schema: "compras",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Id = table.Column<Guid>(type: "uuid", nullable: false, defaultValueSql: "gen_random_uuid()"),
                     Supplier = table.Column<string>(type: "text", nullable: false),
                     Date = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     Status = table.Column<string>(type: "text", nullable: false)
@@ -29,15 +31,15 @@ namespace ComprasBackend.Migrations
 
             migrationBuilder.CreateTable(
                 name: "PurchaseItems",
+                schema: "compras",
                 columns: table => new
                 {
-                    Id = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    PurchaseId = table.Column<int>(type: "integer", nullable: false),
-                    ProductId = table.Column<int>(type: "integer", nullable: false),
+                    Id = table.Column<Guid>(type: "uuid", nullable: false, defaultValueSql: "gen_random_uuid()"),
+                    PurchaseId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ProductId = table.Column<Guid>(type: "uuid", nullable: false),
                     Quantity = table.Column<int>(type: "integer", nullable: false),
-                    AlmacenId = table.Column<int>(type: "integer", nullable: false),
-                    EmpresaId = table.Column<int>(type: "integer", nullable: false)
+                    AlmacenId = table.Column<Guid>(type: "uuid", nullable: false),
+                    EmpresaId = table.Column<Guid>(type: "uuid", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -45,6 +47,7 @@ namespace ComprasBackend.Migrations
                     table.ForeignKey(
                         name: "FK_PurchaseItems_Purchases_PurchaseId",
                         column: x => x.PurchaseId,
+                        principalSchema: "compras",
                         principalTable: "Purchases",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -52,6 +55,7 @@ namespace ComprasBackend.Migrations
 
             migrationBuilder.CreateIndex(
                 name: "IX_PurchaseItems_PurchaseId",
+                schema: "compras",
                 table: "PurchaseItems",
                 column: "PurchaseId");
         }
@@ -60,10 +64,12 @@ namespace ComprasBackend.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "PurchaseItems");
+                name: "PurchaseItems",
+                schema: "compras");
 
             migrationBuilder.DropTable(
-                name: "Purchases");
+                name: "Purchases",
+                schema: "compras");
         }
     }
 }

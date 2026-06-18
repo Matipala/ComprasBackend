@@ -20,7 +20,6 @@ public class PurchasesController : ControllerBase
     {
         try
         {
-            // We can ignore companyCen if the request already has EmpresaId or use it to validate
             var created = await _service.CreateAsync(request);
             return Ok(created);
         }
@@ -34,14 +33,13 @@ public class PurchasesController : ControllerBase
     public async Task<ActionResult<List<PurchaseDto>>> GetAll(string companyCen)
     {
         var purchases = await _service.GetAllAsync();
-        // Ideally filter by companyCen here
         return Ok(purchases);
     }
 
-    private int ResolveOrderId(string orderCen)
+    private Guid ResolveOrderId(string orderCen)
     {
-        if (int.TryParse(orderCen, out int id)) return id;
-        return 0; 
+        if (Guid.TryParse(orderCen, out Guid id)) return id;
+        return Guid.Empty; 
     }
 
     [HttpGet("{orderCen}")]

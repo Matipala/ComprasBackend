@@ -25,11 +25,10 @@ namespace ComprasBackend.Migrations
 
             modelBuilder.Entity("ComprasBackend.Domain.Entities.Purchase", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
 
                     b.Property<DateTime>("Date")
                         .HasColumnType("timestamp with time zone");
@@ -49,23 +48,22 @@ namespace ComprasBackend.Migrations
 
             modelBuilder.Entity("ComprasBackend.Domain.Entities.PurchaseItem", b =>
                 {
-                    b.Property<int>("Id")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                        .HasColumnType("uuid")
+                        .HasDefaultValueSql("gen_random_uuid()");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    b.Property<Guid>("AlmacenId")
+                        .HasColumnType("uuid");
 
-                    b.Property<int>("AlmacenId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("EmpresaId")
+                        .HasColumnType("uuid");
 
-                    b.Property<int>("EmpresaId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uuid");
 
-                    b.Property<int>("ProductId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("PurchaseId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("PurchaseId")
+                        .HasColumnType("uuid");
 
                     b.Property<int>("Quantity")
                         .HasColumnType("integer");

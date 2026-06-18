@@ -18,6 +18,8 @@ public class ComprasDbContext : DbContext
 
         modelBuilder.Entity<Purchase>(entity =>
         {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasDefaultValueSql("gen_random_uuid()");
             entity.Property(e => e.Supplier).IsRequired();
             entity.Property(e => e.Status).IsRequired();
             entity.HasMany(e => e.Items)
@@ -28,6 +30,8 @@ public class ComprasDbContext : DbContext
 
         modelBuilder.Entity<PurchaseItem>(entity =>
         {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasDefaultValueSql("gen_random_uuid()");
             entity.Property(e => e.ProductId).IsRequired();
             entity.Property(e => e.Quantity).IsRequired();
             entity.Property(e => e.AlmacenId).IsRequired();

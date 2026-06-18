@@ -48,7 +48,7 @@ public class PurchaseService : IPurchaseService
         return MapToDto(purchase);
     }
 
-    public async Task<PurchaseDto?> GetByIdAsync(int id)
+    public async Task<PurchaseDto?> GetByIdAsync(Guid id)
     {
         var purchase = await _db.Purchases
             .AsNoTracking()
@@ -70,7 +70,7 @@ public class PurchaseService : IPurchaseService
         return purchases.Select(MapToDto).ToList();
     }
 
-    public async Task<PurchaseDto> ConfirmAsync(int id)
+    public async Task<PurchaseDto> ConfirmAsync(Guid id)
     {
         var purchase = await _db.Purchases
             .Include(p => p.Items)
@@ -82,11 +82,9 @@ public class PurchaseService : IPurchaseService
         if (!string.Equals(purchase.Status, PurchaseStatus.Pending, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("Solo se pueden confirmar compras en estado Pending");
 
-        // 1. Mark as confirmed in local DB
         purchase.Status = PurchaseStatus.Confirmed;
         await _db.SaveChangesAsync();
 
-        // 2. Notify Inventory system (Rafael or internal adapter)
         if (purchase.Items.Any())
         {
             var firstItem = purchase.Items.First();
@@ -96,9 +94,9 @@ public class PurchaseService : IPurchaseService
 
             var lines = purchase.Items.Select(i => new PurchaseEntryLineDto
             {
-                ProductCen = i.ProductId.ToString(), // Translating ID to string
+                ProductCen = i.ProductId.ToString(),
                 Quantity = i.Quantity,
-                UnitCost = 0 // Cost information not available in current PurchaseItem
+                UnitCost = 0
             }).ToList();
 
             try
@@ -107,7 +105,6 @@ public class PurchaseService : IPurchaseService
             }
             catch
             {
-                // In a production environment, we would handle retry logic or log the failure
             }
         }
 

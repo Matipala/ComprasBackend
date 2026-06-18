@@ -2,7 +2,7 @@ namespace ComprasBackend.Domain.Entities;
 
 public class Purchase
 {
-    public int Id { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
     public string Supplier { get; set; } = string.Empty;
     public DateTime Date { get; set; }
     public string Status { get; set; } = string.Empty;
