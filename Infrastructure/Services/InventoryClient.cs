@@ -1,18 +1,15 @@
 using System.Net.Http.Json;
 using ComprasBackend.Application.Interface;
-using Microsoft.Extensions.Configuration;
 
 namespace ComprasBackend.Infrastructure.Services;
 
 public class InventoryClient : IInventoryClient
 {
     private readonly HttpClient _httpClient;
-    private readonly string _baseUrl;
 
-    public InventoryClient(HttpClient httpClient, IConfiguration configuration)
+    public InventoryClient(HttpClient httpClient)
     {
         _httpClient = httpClient;
-        _baseUrl = configuration["InventoryApi:BaseUrl"] ?? "http://localhost:5143";
     }
 
     public async Task<bool> RegisterPurchaseEntryAsync(string companyCen, string warehouseCen, string reason, List<PurchaseEntryLineDto> lines)
@@ -30,8 +27,7 @@ public class InventoryClient : IInventoryClient
             })
         };
 
-        var url = $"{_baseUrl}/api/inventory/companies/{companyCen}/documents";
-        var response = await _httpClient.PostAsJsonAsync(url, request);
+        var response = await _httpClient.PostAsJsonAsync($"/api/inventory/companies/{companyCen}/documents", request);
 
         return response.IsSuccessStatusCode;
     }

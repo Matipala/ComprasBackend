@@ -17,8 +17,11 @@ builder.Services.AddDbContext<ComprasDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 builder.Services.AddScoped<IPurchaseService, PurchaseService>();
-builder.Services.AddHttpClient<IInventoryClient, InventoryClient>();
-builder.Services.AddScoped<IInventoryClient, InventoryClient>();
+builder.Services.AddHttpClient<IInventoryClient, InventoryClient>(client =>
+{
+    var baseUrl = builder.Configuration["InventoryApi:BaseUrl"] ?? "http://localhost:5143";
+    client.BaseAddress = new Uri(baseUrl);
+});
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -37,11 +40,8 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+app.UseSwagger();
+app.UseSwaggerUI();
 
 app.UseCors("AllowAll");
 
