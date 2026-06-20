@@ -147,13 +147,12 @@ public class PurchaseService : IPurchaseService
                 UnitCost = 0
             }).ToList();
 
-            try
+            var inventoryOk = await _inventoryClient.RegisterPurchaseEntryAsync(
+                companyCen, purchase.WarehouseCen, reason, lines);
+
+            if (!inventoryOk)
             {
-                await _inventoryClient.RegisterPurchaseEntryAsync(companyCen, purchase.WarehouseCen, reason, lines);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Warning: Failed to register purchase entry in inventory: {ex.Message}");
+                Console.WriteLine($"Warning: No se pudo registrar la entrada en Inventario para la compra {purchase.Id} luego de todos los reintentos.");
             }
         }
 

@@ -21,6 +21,7 @@ builder.Services.AddHttpClient<IInventoryClient, InventoryClient>(client =>
 {
     var baseUrl = builder.Configuration["InventoryApi:BaseUrl"] ?? "http://localhost:5143";
     client.BaseAddress = new Uri(baseUrl);
+    client.Timeout = TimeSpan.FromSeconds(5);
 });
 
 builder.Services.AddControllers();
