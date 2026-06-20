@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace ComprasBackend.Presentation.Controllers;
 
 [ApiController]
-[Route("api/purchases/companies/{companyCen}/orders")]
+[Route("api/purchases/companies/{companyCen}")]
 public class PurchasesController : ControllerBase
 {
     private readonly IPurchaseService _service;
@@ -15,13 +15,25 @@ public class PurchasesController : ControllerBase
         _service = service;
     }
 
-    [HttpPost]
-    public async Task<ActionResult<PurchaseDto>> Create(string companyCen, [FromBody] CreatePurchaseRequest request)
+    [HttpGet("orders")]
+    public async Task<ActionResult<PagedResultDtoOfPurchaseOrderListDto>> GetAll(
+        string companyCen,
+        [FromQuery] string? status,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] bool sortDescending = true)
+    {
+        var result = await _service.GetAllAsync(companyCen, status, page, pageSize, sortDescending);
+        return Ok(result);
+    }
+
+    [HttpPost("orders")]
+    public async Task<ActionResult<PurchaseOrderSummaryDto>> Create(string companyCen, [FromBody] CreatePurchaseOrderDto request)
     {
         try
         {
-            var created = await _service.CreateAsync(request);
-            return Ok(created);
+            var created = await _service.CreateAsync(companyCen, request);
+            return CreatedAtAction(nameof(GetById), new { companyCen, orderCen = created.OrderCen }, created);
         }
         catch (InvalidOperationException ex)
         {
@@ -29,42 +41,34 @@ public class PurchasesController : ControllerBase
         }
     }
 
-    [HttpGet]
-    public async Task<ActionResult<List<PurchaseDto>>> GetAll(string companyCen)
+    [HttpGet("orders/{orderCen}")]
+    public async Task<ActionResult<PurchaseOrderDetailDto>> GetById(string companyCen, string orderCen)
     {
-        var purchases = await _service.GetAllAsync();
-        return Ok(purchases);
-    }
-
-    private Guid ResolveOrderId(string orderCen)
-    {
-        if (Guid.TryParse(orderCen, out Guid id)) return id;
-        return Guid.Empty; 
-    }
-
-    [HttpGet("{orderCen}")]
-    public async Task<ActionResult<PurchaseDto>> GetById(string companyCen, string orderCen)
-    {
-        var id = ResolveOrderId(orderCen);
-        var purchase = await _service.GetByIdAsync(id);
+        var purchase = await _service.GetByIdAsync(orderCen);
         if (purchase == null)
             return NotFound();
 
         return Ok(purchase);
     }
 
-    [HttpPost("{orderCen}/confirm")]
-    public async Task<ActionResult<PurchaseDto>> Confirm(string companyCen, string orderCen)
+    [HttpPost("orders/{orderCen}/confirm")]
+    public async Task<ActionResult<PurchaseOrderConfirmationDto>> Confirm(string companyCen, string orderCen)
     {
         try
         {
-            var id = ResolveOrderId(orderCen);
-            var updated = await _service.ConfirmAsync(id);
-            return Ok(updated);
+            var result = await _service.ConfirmAsync(companyCen, orderCen);
+            return Ok(result);
         }
         catch (InvalidOperationException ex)
         {
             return BadRequest(new { mensaje = ex.Message });
         }
+    }
+
+    [HttpGet("suppliers")]
+    public async Task<ActionResult<List<SupplierDto>>> GetSuppliers(string companyCen)
+    {
+        var suppliers = await _service.GetSuppliersAsync(companyCen);
+        return Ok(suppliers);
     }
 }

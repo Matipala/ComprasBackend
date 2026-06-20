@@ -17,10 +17,10 @@ public class PurchaseService : IPurchaseService
         _inventoryClient = inventoryClient;
     }
 
-    public async Task<PurchaseDto> CreateAsync(CreatePurchaseRequest request)
+    public async Task<PurchaseOrderSummaryDto> CreateAsync(string companyCen, CreatePurchaseOrderDto request)
     {
-        if (string.IsNullOrWhiteSpace(request.Supplier))
-            throw new InvalidOperationException("Supplier es obligatorio");
+        if (string.IsNullOrWhiteSpace(request.SupplierCen))
+            throw new InvalidOperationException("SupplierCen es obligatorio");
 
         if (request.Items == null || request.Items.Count == 0)
             throw new InvalidOperationException("Debe incluir al menos un producto");
@@ -30,48 +30,99 @@ public class PurchaseService : IPurchaseService
 
         var purchase = new Purchase
         {
-            Supplier = request.Supplier.Trim(),
-            Date = request.Date ?? DateTime.UtcNow,
+            SupplierCen = request.SupplierCen.Trim(),
+            WarehouseCen = request.WarehouseCen,
+            Date = DateTime.UtcNow,
             Status = PurchaseStatus.Pending,
             Items = request.Items.Select(i => new PurchaseItem
             {
-                ProductId = i.ProductId,
+                ProductCen = i.ProductCen,
                 Quantity = i.Quantity,
-                AlmacenId = i.AlmacenId,
-                EmpresaId = i.EmpresaId
             }).ToList()
         };
 
         _db.Purchases.Add(purchase);
         await _db.SaveChangesAsync();
 
-        return MapToDto(purchase);
+        return new PurchaseOrderSummaryDto
+        {
+            OrderCen = purchase.Id.ToString(),
+            Status = purchase.Status
+        };
     }
 
-    public async Task<PurchaseDto?> GetByIdAsync(Guid id)
+    public async Task<PurchaseOrderDetailDto?> GetByIdAsync(string orderCen)
     {
+        if (!Guid.TryParse(orderCen, out var id))
+            return null;
+
         var purchase = await _db.Purchases
             .AsNoTracking()
             .Include(p => p.Items)
             .FirstOrDefaultAsync(p => p.Id == id);
 
-        return purchase == null ? null : MapToDto(purchase);
+        if (purchase == null) return null;
+
+        return new PurchaseOrderDetailDto
+        {
+            OrderCen = purchase.Id.ToString(),
+            Status = purchase.Status,
+            CreatedAt = purchase.Date,
+            ConfirmedAt = purchase.ConfirmedAt,
+            SupplierCen = purchase.SupplierCen,
+            WarehouseCen = purchase.WarehouseCen,
+            Items = purchase.Items.Select(i => new PurchaseOrderDetailItemDto
+            {
+                ProductCen = i.ProductCen,
+                Quantity = i.Quantity
+            }).ToList()
+        };
     }
 
-    public async Task<List<PurchaseDto>> GetAllAsync()
+    public async Task<PagedResultDtoOfPurchaseOrderListDto> GetAllAsync(
+        string companyCen, string? status, int page, int pageSize, bool sortDescending)
     {
-        var purchases = await _db.Purchases
-            .AsNoTracking()
-            .Include(p => p.Items)
-            .OrderByDescending(p => p.Date)
-            .ThenByDescending(p => p.Id)
+        var query = _db.Purchases.AsNoTracking().AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(status))
+            query = query.Where(p => p.Status == status);
+
+        var totalCount = await query.CountAsync();
+        var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+        if (totalPages < 1) totalPages = 1;
+
+        IOrderedQueryable<Purchase> ordered = sortDescending
+            ? query.OrderByDescending(p => p.Date).ThenByDescending(p => p.Id)
+            : query.OrderBy(p => p.Date).ThenBy(p => p.Id);
+
+        var items = await ordered
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(p => new PurchaseOrderListDto
+            {
+                OrderCen = p.Id.ToString(),
+                Status = p.Status,
+                CreatedAt = p.Date,
+                ConfirmedAt = p.ConfirmedAt,
+                SupplierCen = p.SupplierCen,
+                ItemCount = p.Items.Count
+            })
             .ToListAsync();
 
-        return purchases.Select(MapToDto).ToList();
+        return new PagedResultDtoOfPurchaseOrderListDto
+        {
+            Items = items,
+            TotalCount = totalCount,
+            TotalPages = totalPages,
+            CurrentPage = page
+        };
     }
 
-    public async Task<PurchaseDto> ConfirmAsync(Guid id)
+    public async Task<PurchaseOrderConfirmationDto> ConfirmAsync(string companyCen, string orderCen)
     {
+        if (!Guid.TryParse(orderCen, out var id))
+            throw new InvalidOperationException("CEN invalido");
+
         var purchase = await _db.Purchases
             .Include(p => p.Items)
             .FirstOrDefaultAsync(p => p.Id == id);
@@ -83,50 +134,48 @@ public class PurchaseService : IPurchaseService
             throw new InvalidOperationException("Solo se pueden confirmar compras en estado Pending");
 
         purchase.Status = PurchaseStatus.Confirmed;
+        purchase.ConfirmedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
 
         if (purchase.Items.Any())
         {
-            var firstItem = purchase.Items.First();
-            var companyCen = firstItem.EmpresaId.ToString();
-            var warehouseCen = firstItem.AlmacenId.ToString();
-            var reason = $"Compra confirmada: ID {purchase.Id}, Proveedor: {purchase.Supplier}";
-
+            var reason = $"Compra confirmada: ID {purchase.Id}";
             var lines = purchase.Items.Select(i => new PurchaseEntryLineDto
             {
-                ProductCen = i.ProductId.ToString(),
+                ProductCen = i.ProductCen,
                 Quantity = i.Quantity,
                 UnitCost = 0
             }).ToList();
 
             try
             {
-                await _inventoryClient.RegisterPurchaseEntryAsync(companyCen, warehouseCen, reason, lines);
+                await _inventoryClient.RegisterPurchaseEntryAsync(companyCen, purchase.WarehouseCen, reason, lines);
             }
-            catch
+            catch (Exception ex)
             {
+                Console.WriteLine($"Warning: Failed to register purchase entry in inventory: {ex.Message}");
             }
         }
 
-        return MapToDto(purchase);
+        return new PurchaseOrderConfirmationDto
+        {
+            OrderCen = purchase.Id.ToString(),
+            Status = purchase.Status,
+            ConfirmedAt = purchase.ConfirmedAt.Value
+        };
     }
 
-    private static PurchaseDto MapToDto(Purchase purchase)
+    public async Task<List<SupplierDto>> GetSuppliersAsync(string companyCen)
     {
-        return new PurchaseDto
-        {
-            Id = purchase.Id,
-            Supplier = purchase.Supplier,
-            Date = purchase.Date,
-            Status = purchase.Status,
-            Items = purchase.Items.Select(i => new PurchaseItemDto
+        return await _db.Suppliers
+            .AsNoTracking()
+            .Where(s => s.IsActive)
+            .Select(s => new SupplierDto
             {
-                ProductId = i.ProductId,
-                Quantity = i.Quantity,
-                AlmacenId = i.AlmacenId,
-                EmpresaId = i.EmpresaId
-            }).ToList()
-        };
+                SupplierCen = s.Cen,
+                Name = s.Name
+            })
+            .ToListAsync();
     }
 
     public static class PurchaseStatus

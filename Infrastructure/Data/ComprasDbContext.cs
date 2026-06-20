@@ -11,6 +11,7 @@ public class ComprasDbContext : DbContext
 
     public DbSet<Purchase> Purchases => Set<Purchase>();
     public DbSet<PurchaseItem> PurchaseItems => Set<PurchaseItem>();
+    public DbSet<Supplier> Suppliers => Set<Supplier>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -20,7 +21,8 @@ public class ComprasDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).HasDefaultValueSql("gen_random_uuid()");
-            entity.Property(e => e.Supplier).IsRequired();
+            entity.Property(e => e.SupplierCen).IsRequired();
+            entity.Property(e => e.WarehouseCen).IsRequired();
             entity.Property(e => e.Status).IsRequired();
             entity.HasMany(e => e.Items)
                 .WithOne(i => i.Purchase)
@@ -32,10 +34,26 @@ public class ComprasDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).HasDefaultValueSql("gen_random_uuid()");
-            entity.Property(e => e.ProductId).IsRequired();
+            entity.Property(e => e.ProductCen).IsRequired();
             entity.Property(e => e.Quantity).IsRequired();
-            entity.Property(e => e.AlmacenId).IsRequired();
-            entity.Property(e => e.EmpresaId).IsRequired();
+        });
+
+        modelBuilder.Entity<Supplier>(entity =>
+        {
+            entity.ToTable("Suppliers", "compras");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasDefaultValueSql("gen_random_uuid()");
+            entity.Property(e => e.Cen).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
+            entity.HasIndex(e => e.Cen).IsUnique();
+
+            entity.HasData(
+                new Supplier { Id = Guid.Parse("a0000000-0000-0000-0000-000000000001"), Cen = "prov-001", Name = "Distribuidora Nacional S.A." },
+                new Supplier { Id = Guid.Parse("a0000000-0000-0000-0000-000000000002"), Cen = "prov-002", Name = "Importadora Del Sur Ltda." },
+                new Supplier { Id = Guid.Parse("a0000000-0000-0000-0000-000000000003"), Cen = "prov-003", Name = "Mayorista El Buen Precio" },
+                new Supplier { Id = Guid.Parse("a0000000-0000-0000-0000-000000000004"), Cen = "prov-004", Name = "Productos Frescos del Campo" },
+                new Supplier { Id = Guid.Parse("a0000000-0000-0000-0000-000000000005"), Cen = "prov-005", Name = "Bebidas y Licores Premium" }
+            );
         });
     }
 }
