@@ -143,7 +143,10 @@ public class PurchaseService : IPurchaseService
                 UnitCost = 0
             }).ToList();
 
-            try
+            var inventoryOk = await _inventoryClient.RegisterPurchaseEntryAsync(
+                companyCen, purchase.WarehouseCen, reason, lines);
+
+            if (!inventoryOk)
             {
                 var success = await _inventoryClient.RegisterPurchaseEntryAsync(companyCen, purchase.WarehouseCen, reason, lines);
                 if (!success)
