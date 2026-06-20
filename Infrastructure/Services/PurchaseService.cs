@@ -133,10 +133,6 @@ public class PurchaseService : IPurchaseService
         if (!string.Equals(purchase.Status, PurchaseStatus.Pending, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("Solo se pueden confirmar compras en estado Pending");
 
-        purchase.Status = PurchaseStatus.Confirmed;
-        purchase.ConfirmedAt = DateTime.UtcNow;
-        await _db.SaveChangesAsync();
-
         if (purchase.Items.Any())
         {
             var reason = $"Compra confirmada: ID {purchase.Id}";
@@ -149,13 +145,21 @@ public class PurchaseService : IPurchaseService
 
             try
             {
-                await _inventoryClient.RegisterPurchaseEntryAsync(companyCen, purchase.WarehouseCen, reason, lines);
+                var success = await _inventoryClient.RegisterPurchaseEntryAsync(companyCen, purchase.WarehouseCen, reason, lines);
+                if (!success)
+                {
+                    throw new InvalidOperationException("No se pudo registrar la entrada en el inventario luego de múltiples intentos.");
+                }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Warning: Failed to register purchase entry in inventory: {ex.Message}");
+                throw new InvalidOperationException($"Error al registrar inventario: {ex.Message}");
             }
         }
+
+        purchase.Status = PurchaseStatus.Confirmed;
+        purchase.ConfirmedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
 
         return new PurchaseOrderConfirmationDto
         {

@@ -16,7 +16,7 @@ public class InventoryClient : IInventoryClient
     {
         var request = new
         {
-            documentType = "ENTRY",
+            documentType = "Entrada",
             warehouseCen = warehouseCen,
             reason = reason,
             lines = lines.Select(l => new
@@ -27,8 +27,22 @@ public class InventoryClient : IInventoryClient
             })
         };
 
-        var response = await _httpClient.PostAsJsonAsync($"/api/inventory/companies/{companyCen}/documents", request);
+        HttpResponseMessage response = null;
+        for (int i = 0; i < 3; i++)
+        {
+            try
+            {
+                response = await _httpClient.PostAsJsonAsync($"/api/inventory/companies/{companyCen}/documents", request);
+                if (response.IsSuccessStatusCode)
+                    return true;
+            }
+            catch
+            {
+                // Ignore exception to retry
+            }
+            await Task.Delay(500 * (i + 1));
+        }
 
-        return response.IsSuccessStatusCode;
+        return false;
     }
 }
