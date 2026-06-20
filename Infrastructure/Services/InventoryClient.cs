@@ -45,7 +45,7 @@ public class InventoryClient : IInventoryClient
 
         var request = new
         {
-            documentType = "ENTRY",
+            documentType = "Entrada",
             warehouseCen = warehouseCen,
             reason = reason,
             lines = lines.Select(l => new
