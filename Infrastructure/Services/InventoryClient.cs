@@ -43,42 +43,28 @@ public class InventoryClient : IInventoryClient
 
         var resilience = Policy.WrapAsync(_retryPolicy, _circuitBreaker);
 
-        try
+        var request = new
         {
-            documentType = "Entrada",
+            documentType = "ENTRY",
             warehouseCen = warehouseCen,
             reason = reason,
             lines = lines.Select(l => new
             {
-                var request = new
-                {
-                    documentType = "ENTRY",
-                    warehouseCen = warehouseCen,
-                    reason = reason,
-                    lines = lines.Select(l => new
-                    {
-                        productCen = l.ProductCen,
-                        quantity = l.Quantity,
-                        unitCost = l.UnitCost
-                    })
-                };
+                productCen = l.ProductCen,
+                quantity = l.Quantity,
+                unitCost = l.UnitCost
+            })
+        };
 
-        HttpResponseMessage response = null;
-        for (int i = 0; i < 3; i++)
+        try
         {
-            try
-            {
-                response = await _httpClient.PostAsJsonAsync($"/api/inventory/companies/{companyCen}/documents", request);
-                if (response.IsSuccessStatusCode)
-                    return true;
-            }
-            catch
-            {
-                // Ignore exception to retry
-            }
-            await Task.Delay(500 * (i + 1));
+            var response = await resilience.ExecuteAsync(() => _httpClient.PostAsJsonAsync(url, request));
+            return response.IsSuccessStatusCode;
         }
-
-        return false;
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Compras→Inventario] Error de resiliencia: {ex.Message}");
+            return false;
+        }
     }
 }

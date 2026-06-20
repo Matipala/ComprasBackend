@@ -143,15 +143,18 @@ public class PurchaseService : IPurchaseService
                 UnitCost = 0
             }).ToList();
 
-            var inventoryOk = await _inventoryClient.RegisterPurchaseEntryAsync(
-                companyCen, purchase.WarehouseCen, reason, lines);
-
-            if (!inventoryOk)
+            try
             {
-                var success = await _inventoryClient.RegisterPurchaseEntryAsync(companyCen, purchase.WarehouseCen, reason, lines);
-                if (!success)
+                var inventoryOk = await _inventoryClient.RegisterPurchaseEntryAsync(
+                    companyCen, purchase.WarehouseCen, reason, lines);
+
+                if (!inventoryOk)
                 {
-                    throw new InvalidOperationException("No se pudo registrar la entrada en el inventario luego de múltiples intentos.");
+                    var success = await _inventoryClient.RegisterPurchaseEntryAsync(companyCen, purchase.WarehouseCen, reason, lines);
+                    if (!success)
+                    {
+                        throw new InvalidOperationException("No se pudo registrar la entrada en el inventario luego de múltiples intentos.");
+                    }
                 }
             }
             catch (Exception ex)
